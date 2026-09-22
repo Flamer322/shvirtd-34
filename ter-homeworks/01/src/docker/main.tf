@@ -1,0 +1,51 @@
+terraform {
+  required_providers {
+    docker = {
+      source = "kreuzwerker/docker"
+    }
+  }
+
+  required_version = "~>1.16.0"
+}
+
+provider "docker" {
+  context = var.docker_context
+}
+
+resource "random_password" "root-password" {
+  length      = 16
+  special     = false
+  min_upper   = 1
+  min_lower   = 1
+  min_numeric = 1
+}
+
+resource "random_password" "user-password" {
+  length      = 16
+  special     = false
+  min_upper   = 1
+  min_lower   = 1
+  min_numeric = 1
+}
+
+resource "docker_image" "mysql" {
+  name = "mysql:8"
+}
+
+resource "docker_container" "mysql" {
+  image = docker_image.mysql.image_id
+  name  = "mysql"
+
+  ports {
+    internal = 3306
+    external = 3306
+  }
+
+  env = [
+    "MYSQL_ROOT_PASSWORD=${resource.random_password.root-password.result}",
+    "MYSQL_DATABASE=wordpress",
+    "MYSQL_USER=wordpress",
+    "MYSQL_PASSWORD=${resource.random_password.user-password.result}",
+    "MYSQL_ROOT_HOST=\"%\""
+  ]
+}
