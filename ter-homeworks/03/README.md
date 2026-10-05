@@ -2,6 +2,8 @@
 
 ### [Ссылка на коммит с кодом](https://github.com/Flamer322/ter-homeworks/commit/ba14ba430a8503adba9b9eed7bca08348f3a0233)
 
+### [Ссылка на коммит с правками](https://github.com/Flamer322/ter-homeworks/commit/baf416bf256d889b31a04d6868ad3233096dc63a)
+
 ## Задача 1
 
 Созданная группа безопасности в веб-интерфейсе
@@ -10,11 +12,11 @@
 
 ## Задача 2
 
-Содержимое файла `count-vm.tf` с созданием ВМ при помощи `count`. ВМ добавлены в группу безопасности при помощи `network_interface.security_group_ids`
+Содержимое файла `count-vm.tf` с созданием ВМ при помощи `count`. ВМ добавлены в группу безопасности при помощи `network_interface.security_group_ids`. ВМ создаются после `for_each` ВМ при помощи `depends_on`
 
 ![image](images/task-2-1.png)
 
-Содержимое файла `for_each-vm.tf` с созданием ВМ при помощи `for_each`. ВМ создаются после `count_vm` ВМ при помощи `depends_on`
+Содержимое файла `for_each-vm.tf` с созданием ВМ при помощи `for_each`
 
 ![image](images/task-2-2.png)
 
@@ -96,3 +98,5 @@
 ![image](images/task-9-3.png)
 
 ### [Ссылка на коммит с кодом](https://github.com/Flamer322/ter-homeworks/commit/ba14ba430a8503adba9b9eed7bca08348f3a0233)
+
+### [Ссылка на коммит с правками](https://github.com/Flamer322/ter-homeworks/commit/baf416bf256d889b31a04d6868ad3233096dc63a)
