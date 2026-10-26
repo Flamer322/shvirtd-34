@@ -1,0 +1,21 @@
+FROM centos:7
+
+RUN sed -i \
+    -e 's|mirrorlist=|#mirrorlist=|g' \
+    -e 's|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' \
+    /etc/yum.repos.d/CentOS-Base.repo \
+    && yum install -y \
+       gcc make openssl-devel bzip2-devel libffi-devel zlib-devel \
+       wget tar \
+    && yum clean all
+
+RUN wget https://www.python.org/ftp/python/3.9.25/Python-3.9.25.tgz \
+    && tar -xzf Python-3.9.25.tgz \
+    && cd Python-3.9.25 \
+    && ./configure --enable-optimizations \
+    && make -j2 \
+    && make altinstall \
+    && cd / \
+    && rm -rf Python-3.9.25 Python-3.9.25.tgz
+
+CMD ["sleep", "infinity"]
