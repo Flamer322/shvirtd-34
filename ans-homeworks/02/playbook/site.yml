@@ -1,0 +1,153 @@
+---
+- name: Install ClickHouse
+  hosts: clickhouse
+  handlers:
+    - name: Start clickhouse service
+      become: true
+      ansible.builtin.service:
+        name: clickhouse-server
+        state: restarted
+
+  tasks:
+    - name: Download ClickHouse client and server
+      ansible.builtin.get_url:
+        url: "https://packages.clickhouse.com/rpm/stable/{{ item }}-{{ clickhouse_version }}.noarch.rpm"
+        dest: "./{{ item }}-{{ clickhouse_version }}.rpm"
+        mode: "0644"
+      loop:
+        - clickhouse-client
+        - clickhouse-server
+
+    - name: Download ClickHouse common static
+      ansible.builtin.get_url:
+        url: "https://packages.clickhouse.com/rpm/stable/clickhouse-common-static-{{ clickhouse_version }}.x86_64.rpm"
+        dest: "./clickhouse-common-static-{{ clickhouse_version }}.rpm"
+        mode: "0644"
+
+    - name: Install ClickHouse packages
+      become: true
+      ansible.builtin.dnf:
+        name:
+          - "./clickhouse-common-static-{{ clickhouse_version }}.rpm"
+          - "./clickhouse-client-{{ clickhouse_version }}.rpm"
+          - "./clickhouse-server-{{ clickhouse_version }}.rpm"
+        state: present
+        disable_gpg_check: true
+      notify: Start clickhouse service
+
+    - name: Ensure ClickHouse is enabled and started
+      become: true
+      ansible.builtin.systemd:
+        name: clickhouse-server
+        state: started
+        enabled: true
+
+    - name: Wait for ClickHouse to become available
+      ansible.builtin.wait_for:
+        host: 127.0.0.1
+        port: 9000
+        state: started
+        timeout: 60
+
+    - name: Create database
+      ansible.builtin.command:
+        cmd: clickhouse-client -q "CREATE DATABASE IF NOT EXISTS logs"
+      changed_when: false
+
+- name: Install and configure Vector
+  hosts: vector
+  become: true
+
+  handlers:
+    - name: Restart Vector
+      ansible.builtin.systemd:
+        name: vector
+        state: restarted
+        daemon_reload: true
+
+  tasks:
+    - name: Create Vector installation directory
+      ansible.builtin.file:
+        path: "{{ vector_install_dir }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Download Vector archive
+      ansible.builtin.get_url:
+        url: "{{ vector_download_url }}"
+        dest: "/tmp/{{ vector_archive }}"
+        mode: "0644"
+
+    - name: Extract Vector archive
+      ansible.builtin.unarchive:
+        src: "/tmp/{{ vector_archive }}"
+        dest: "{{ vector_install_dir }}"
+        remote_src: true
+        extra_opts:
+          - --strip-components=2
+        creates: "{{ vector_install_dir }}/vector"
+
+    - name: Install Vector executable
+      ansible.builtin.file:
+        src: "{{ vector_install_dir }}/bin/vector"
+        dest: /usr/local/bin/vector
+        state: link
+        force: true
+
+    - name: Create Vector configuration directory
+      ansible.builtin.file:
+        path: "{{ vector_config_dir }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Create Vector data directory
+      ansible.builtin.file:
+        path: /var/lib/vector
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Deploy Vector configuration
+      ansible.builtin.template:
+        src: templates/vector.toml.j2
+        dest: "{{ vector_config_file }}"
+        owner: root
+        group: root
+        mode: "0644"
+        validate: "/usr/local/bin/vector validate --config-dir /etc/vector %s"
+      notify: Restart Vector
+
+    - name: Install Vector systemd unit
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/vector.service
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          [Unit]
+          Description=Vector observability pipeline
+          After=network-online.target
+          Wants=network-online.target
+
+          [Service]
+          ExecStart=/usr/local/bin/vector --config /etc/vector/vector.toml
+          Restart=always
+          RestartSec=5
+          User=root
+          Environment=VECTOR_CONFIG=/etc/vector/vector.toml
+
+          [Install]
+          WantedBy=multi-user.target
+      notify: Restart Vector
+
+    - name: Enable and start Vector
+      ansible.builtin.systemd:
+        name: vector
+        enabled: true
+        state: started
+        daemon_reload: true

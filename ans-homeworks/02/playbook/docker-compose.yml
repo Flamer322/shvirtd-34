@@ -1,0 +1,32 @@
+services:
+  clickhouse-01:
+    build:
+      context: .
+      dockerfile: Dockerfile.clickhouse
+    container_name: clickhouse-01
+    hostname: clickhouse-01
+    privileged: true
+    cgroup: host
+    ports:
+      - "2221:22"
+    tmpfs:
+      - /run
+      - /run/lock
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+
+  vector-01:
+    build:
+      context: .
+      dockerfile: Dockerfile.vector
+    container_name: vector-01
+    hostname: vector-01
+    privileged: true
+    cgroup: host
+    ports:
+      - "2222:22"
+    tmpfs:
+      - /run
+      - /run/lock
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
