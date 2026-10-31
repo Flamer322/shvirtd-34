@@ -1,6 +1,8 @@
 # Домашнее задание к занятию Использование Terraform в команде
 
-### [Ссылка на на папку с кодом в отдельной ветке](https://github.com/Flamer322/ter-homeworks/tree/terraform-05/04/src)
+### [Ссылка на папку с кодом в отдельной ветке](https://github.com/Flamer322/ter-homeworks/tree/terraform-05/04/src)
+
+### [Ссылка на коммит с правками](https://github.com/Flamer322/ter-homeworks/commit/cd4996b14d75650b2cdfa07a018cddb0dc6e5907)
 
 ## Задача 1
 
@@ -114,4 +116,6 @@ Output'ы с именем бакета, данными access key и приме�
 
 ![image](images/task-7-5.png)
 
-### [Ссылка на на папку с кодом в отдельной ветке](https://github.com/Flamer322/ter-homeworks/tree/terraform-05/04/src)
+### [Ссылка на папку с кодом в отдельной ветке](https://github.com/Flamer322/ter-homeworks/tree/terraform-05/04/src)
+
+### [Ссылка на коммит с правками](https://github.com/Flamer322/ter-homeworks/commit/cd4996b14d75650b2cdfa07a018cddb0dc6e5907)
