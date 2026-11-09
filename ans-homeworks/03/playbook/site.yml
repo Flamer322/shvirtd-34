@@ -1,0 +1,202 @@
+---
+- name: Install Clickhouse
+  hosts: clickhouse
+  become: true
+
+  handlers:
+    - name: Restart Clickhouse
+      ansible.builtin.service:
+        name: clickhouse-server
+        state: restarted
+
+  tasks:
+    - name: Get clickhouse distrib
+      ansible.builtin.get_url:
+        url: "https://packages.clickhouse.com/deb/pool/main/c/{{ item }}/{{ item }}_{{ clickhouse_version }}_amd64.deb"
+        dest: "/tmp/{{ item }}-{{ clickhouse_version }}_amd64.deb"
+        mode: "0644"
+      with_items: "{{ clickhouse_packages }}"
+      tags:
+        - clickhouse
+        - distr
+
+    - name: Update apt cache
+      ansible.builtin.apt:
+        update_cache: true
+      tags:
+        - clickhouse
+        - distr
+
+    - name: Install clickhouse packages
+      ansible.builtin.apt:
+        deb: "/tmp/{{ item }}-{{ clickhouse_version }}_amd64.deb"
+        state: present
+      loop: "{{ clickhouse_packages }}"
+      tags:
+        - clickhouse
+        - distr
+
+    - name: Configure ClickHouse listen host
+      ansible.builtin.copy:
+        content: |
+          <clickhouse>
+              <listen_host>0.0.0.0</listen_host>
+          </clickhouse>
+        dest: /etc/clickhouse-server/config.d/listen.xml
+        mode: "0644"
+      notify: Restart Clickhouse
+      tags:
+        - clickhouse
+        - config
+
+    - name: Apply ClickHouse configuration changes
+      ansible.builtin.meta: flush_handlers
+      tags:
+        - clickhouse
+        - config
+
+    - name: Ensure clickhouse service is started
+      ansible.builtin.service:
+        name: clickhouse-server
+        state: started
+        enabled: true
+      tags:
+        - clickhouse
+        - start service
+
+    - name: Wait for clickhouse-server to be ready
+      ansible.builtin.wait_for:
+        host: localhost
+        port: 9000
+        delay: 10
+        timeout: 300
+      tags:
+        - clickhouse
+        - wait
+
+    - name: Create database
+      ansible.builtin.command: "clickhouse-client -q 'create database logs;'"
+      register: create_db
+      failed_when: create_db.rc != 0 and create_db.rc != 82
+      changed_when: create_db.rc == 0
+      tags:
+        - clickhouse
+        - db
+
+- name: Install Vector
+  hosts: vector
+  become: true
+
+  tasks:
+    - name: Get vector distrib
+      ansible.builtin.get_url:
+        url: "https://packages.timber.io/vector/{{ vector_version }}/vector_{{ vector_version }}-1_amd64.deb"
+        dest: "/tmp/vector-{{ vector_version }}.deb"
+        mode: "0644"
+      tags:
+        - vector
+        - distr
+
+    - name: Update apt cache
+      ansible.builtin.apt:
+        update_cache: true
+      tags:
+        - vector
+        - distr
+
+    - name: Install vector
+      ansible.builtin.apt:
+        deb: "/tmp/vector-{{ vector_version }}.deb"
+        state: present
+      tags:
+        - vector
+        - distr
+
+    - name: Deploy vector configuration
+      ansible.builtin.template:
+        src: templates/vector.yaml.j2
+        dest: "{{ vector_config_path }}"
+        mode: "0644"
+      tags:
+        - vector
+        - config
+
+    - name: Validate vector configuration
+      ansible.builtin.command:
+        cmd: "vector validate {{ vector_config_path }}"
+      changed_when: false
+      tags:
+        - vector
+        - config
+
+    - name: Ensure vector service is started
+      ansible.builtin.service:
+        name: vector
+        state: started
+        enabled: true
+      tags:
+        - vector
+        - start service
+
+- name: Install LightHouse
+  hosts: lighthouse
+  become: true
+
+  handlers:
+    - name: Reload Nginx
+      ansible.builtin.service:
+        name: nginx
+        state: reloaded
+
+  tasks:
+    - name: Install unzip
+      ansible.builtin.package:
+        name: unzip
+        state: present
+      tags:
+        - lighthouse
+        - distr
+
+    - name: Get lighthouse static
+      ansible.builtin.unarchive:
+        src: https://github.com/VKCOM/lighthouse/archive/refs/heads/master.zip
+        dest: /opt
+        remote_src: true
+        creates: "{{ lighthouse_directory }}/index.html"
+      tags:
+        - lighthouse
+        - distr
+
+    - name: Install nginx
+      ansible.builtin.package:
+        name: nginx
+        state: present
+      tags:
+        - nginx
+        - distr
+
+    - name: Deploy lighthouse nginx config
+      ansible.builtin.template:
+        src: templates/lighthouse.conf.j2
+        dest: /etc/nginx/sites-available/default
+        mode: "0644"
+      notify: Reload Nginx
+      tags:
+        - nginx
+        - config
+
+    - name: Validate nginx configuration
+      ansible.builtin.command: nginx -t
+      changed_when: false
+      tags:
+        - nginx
+        - config
+
+    - name: Ensure nginx service is started
+      ansible.builtin.service:
+        name: nginx
+        state: started
+        enabled: true
+      tags:
+        - nginx
+        - start service
