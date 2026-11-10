@@ -1,0 +1,25 @@
+---
+all:
+  children:
+    clickhouse:
+      hosts:
+        clickhouse-01:
+          ansible_host: 127.0.0.1
+          ansible_port: 8022
+
+    vector:
+      hosts:
+        vector-01:
+          ansible_host: 127.0.0.1
+          ansible_port: 8122
+
+    lighthouse:
+      hosts:
+        lighthouse-01:
+          ansible_host: 127.0.0.1
+          ansible_port: 8222
+
+  vars:
+    ansible_user: vagrant
+    ansible_ssh_private_key_file: "~/.vagrant/machines/{{ inventory_hostname }}/vmware_desktop/private_key"
+    ansible_python_interpreter: /usr/bin/python3

@@ -1,0 +1,76 @@
+---
+- name: Install and configure ClickHouse
+  hosts: clickhouse
+  become: true
+
+  roles:
+    - role: clickhouse
+      vars:
+        clickhouse_listen_host_default:
+          - "0.0.0.0"
+
+  tasks:
+    - name: Wait for ClickHouse to become available
+      ansible.builtin.wait_for:
+        host: 127.0.0.1
+        port: 9000
+        state: started
+        timeout: 60
+
+    - name: Create logs database
+      ansible.builtin.command:
+        cmd: clickhouse-client --query "CREATE DATABASE IF NOT EXISTS logs"
+      changed_when: false
+      tags:
+        - database
+
+- name: Install and configure Vector
+  hosts: vector
+  become: true
+
+  roles:
+    - vector
+
+- name: Install Nginx
+  hosts: lighthouse
+  become: true
+
+  tasks:
+    - name: Install Nginx
+      ansible.builtin.apt:
+        name: nginx
+        state: present
+        update_cache: true
+
+- name: Deploy Lighthouse
+  hosts: lighthouse
+  become: true
+
+  roles:
+    - lighthouse
+
+  handlers:
+    - name: Reload Nginx
+      ansible.builtin.service:
+        name: nginx
+        state: reloaded
+
+  tasks:
+    - name: Disable default Nginx site
+      ansible.builtin.file:
+        path: /etc/nginx/sites-enabled/default
+        state: absent
+      notify: Reload Nginx
+
+    - name: Enable Lighthouse site
+      ansible.builtin.file:
+        src: "{{ lighthouse_nginx_config }}"
+        dest: /etc/nginx/sites-enabled/lighthouse
+        state: link
+      notify: Reload Nginx
+
+    - name: Ensure Nginx is running
+      ansible.builtin.service:
+        name: nginx
+        state: started
+        enabled: true
